@@ -35,6 +35,5 @@ def chat(query: Query):
     return {
         "question": query.question,
         "severity": result["severity"],
-        "context": result["context"],
         "answer": result["response"]
     }

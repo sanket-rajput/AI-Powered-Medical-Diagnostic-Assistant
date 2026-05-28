@@ -1,18 +1,23 @@
 import os
 import requests
+import pickle
 
 from dotenv import load_dotenv
-
 from langchain_community.vectorstores import FAISS
-from langchain_community.embeddings import HuggingFaceEmbeddings
 
 load_dotenv()
 
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
 
-embeddings = HuggingFaceEmbeddings(
-    model_name="sentence-transformers/all-MiniLM-L6-v2"
-)
+class DummyEmbeddings:
+    def embed_query(self, text):
+        return [0.0] * 384
+
+    def embed_documents(self, texts):
+        return [[0.0] * 384 for _ in texts]
+
+
+embeddings = DummyEmbeddings()
 
 db = FAISS.load_local(
     "vectorstore",
@@ -40,13 +45,27 @@ def ask_medical_bot(query):
 
     docs = db.similarity_search(query, k=2)
 
-    retrieved_context = [doc.page_content for doc in docs]
-    context = "\n".join(retrieved_context)
+    context = "\n".join([doc.page_content for doc in docs])
+
+    emergency_keywords = [
+        "chest pain",
+        "difficulty breathing",
+        "shortness of breath",
+        "stroke",
+        "unconscious"
+    ]
+
+    severity = "normal"
+
+    for word in emergency_keywords:
+        if word.lower() in query.lower():
+            severity = "emergency"
+            break
 
     prompt = f"""
-You are an AI-powered medical assistant.
+You are an AI medical assistant.
 
-Use ONLY the provided medical context.
+Use ONLY the provided context.
 
 Medical Context:
 {context}
@@ -55,14 +74,10 @@ User Query:
 {query}
 
 Rules:
-- Provide safe preliminary health guidance
-- Do not diagnose diseases with certainty
-- Mention possible concerns carefully
-- Encourage professional consultation
-- If symptoms appear severe or life-threatening,
-  strongly recommend emergency medical attention
-
-Respond professionally and clearly.
+- Give preliminary guidance
+- Do not diagnose with certainty
+- Recommend professional consultation
+- Mention emergency care if severe
 """
 
     response = requests.post(
@@ -86,6 +101,5 @@ Respond professionally and clearly.
 
     return {
         "severity": severity,
-        "response": data["choices"][0]["message"]["content"],
-        "context": retrieved_context
+        "response": data["choices"][0]["message"]["content"]
     }
