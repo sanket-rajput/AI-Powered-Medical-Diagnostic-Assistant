@@ -1,0 +1,12 @@
+fastapi
+uvicorn
+python-dotenv
+
+# embeddings / vector store
+langchain
+langchain-community
+faiss-cpu
+sentence-transformers
+transformers
+PyPDF2
+python-multipart
