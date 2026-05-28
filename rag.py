@@ -1,6 +1,5 @@
 import os
 import requests
-import pickle
 
 from dotenv import load_dotenv
 from langchain_community.vectorstores import FAISS
@@ -47,21 +46,6 @@ def ask_medical_bot(query):
 
     context = "\n".join([doc.page_content for doc in docs])
 
-    emergency_keywords = [
-        "chest pain",
-        "difficulty breathing",
-        "shortness of breath",
-        "stroke",
-        "unconscious"
-    ]
-
-    severity = "normal"
-
-    for word in emergency_keywords:
-        if word.lower() in query.lower():
-            severity = "emergency"
-            break
-
     prompt = f"""
 You are an AI medical assistant.
 
@@ -87,17 +71,26 @@ Rules:
             "Content-Type": "application/json"
         },
         json={
-            "model": "openrouter/free",
+            "model": "deepseek/deepseek-r1:free",
             "messages": [
                 {
                     "role": "user",
                     "content": prompt
                 }
             ]
-        }
+        },
+        timeout=60
     )
 
     data = response.json()
+
+    print("OPENROUTER RESPONSE:", data)
+
+    if "choices" not in data:
+        return {
+            "severity": severity,
+            "response": f"OpenRouter API Error: {data}"
+        }
 
     return {
         "severity": severity,
